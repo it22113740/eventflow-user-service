@@ -1,0 +1,48 @@
+version: "3.9"
+
+services:
+  app:
+    build:
+      context: .
+      target: production
+    container_name: eventflow-user-service
+    restart: unless-stopped
+    ports:
+      - "${PORT:-3001}:3001"
+    env_file: .env
+    environment:
+      - NODE_ENV=production
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - eventflow-net
+
+  mongodb:
+    image: mongo:7-jammy
+    container_name: eventflow-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER:-admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-adminpassword}
+      MONGO_INITDB_DATABASE: ${MONGO_DB_NAME:-eventflow_users}
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - eventflow-net
+
+volumes:
+  mongo_data:
+    driver: local
+
+networks:
+  eventflow-net:
+    driver: bridge
